@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>💰 红包退款工具</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5rem;
+        }
+        
+        .header p {
+            color: #666;
+            font-size: 1.1rem;
+        }
+        
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 4px solid #dc3545;
+        }
+        
+        .section h3 {
+            color: #333;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .input-group {
+            margin-bottom: 15px;
+        }
+        
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .input-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        .input-group input:focus {
+            outline: none;
+            border-color: #dc3545;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #dc3545, #a71e2a);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(220, 53, 69, 0.4);
+        }
+        
+        .btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #28a745, #1e7e34);
+        }
+        
+        .btn-info {
+            background: linear-gradient(135deg, #17a2b8, #117a8b);
+        }
+        
+        .result-area {
+            margin-top: 15px;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+            min-height: 150px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            font-size: 14px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .packet-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border: 1px solid #dee2e6;
+            transition: all 0.3s;
+        }
+        
+        .packet-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .packet-card.refundable {
+            border-left: 4px solid #28a745;
+        }
+        
+        .packet-card.empty {
+            border-left: 4px solid #6c757d;
+            opacity: 0.7;
+        }
+        
+        .packet-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .info-item {
+            text-align: center;
+        }
+        
+        .info-label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        
+        .info-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .status {
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            display: inline-block;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status.warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #dc3545;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .network-status {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 10px;
+            background: #e3f2fd;
+            border-radius: 8px;
+        }
+        
+        .warning-box {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .warning-box h4 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+        
+        .warning-box ul {
+            color: #856404;
+            margin-left: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💰 红包退款工具</h1>
+            <p>管理和退还未抢完的红包余额</p>
+        </div>
+        
+        <div class="network-status">
+            <div id="networkStatus">🔗 检查网络连接中...</div>
+        </div>
+        
+        <div class="warning-box">
+            <h4>⚠️ 重要提醒</h4>
+            <ul>
+                <li>只有红包创建者可以执行退款操作</li>
+                <li>退款后红包立即失效，其他人无法再抢</li>
+                <li>退款操作需要支付 Gas 费用（约 0.001-0.003 ETH）</li>
+                <li>已被抢完的红包无法退款</li>
+            </ul>
+        </div>
+        
+        <div class="section">
+            <h3>🔧 连接合约</h3>
+            <div class="input-group">
+                <label for="contractAddress">合约地址:</label>
+                <input type="text" id="contractAddress" placeholder="0x..." />
+            </div>
+            <button class="btn btn-info" onclick="connectContract()">连接合约</button>
+            <button class="btn btn-success" onclick="connectWallet()">连接钱包</button>
+            <div id="contractResult" class="result-area"></div>
+        </div>
+        
+        <div class="section">
+            <h3>📋 我的红包列表</h3>
+            <button class="btn btn-info" onclick="loadMyPackets()" id="loadBtn" disabled>加载我的红包</button>
+            <button class="btn btn-info" onclick="refreshPackets()">刷新状态</button>
+            <div id="packetsList"></div>
+        </div>
+        
+        <div class="section">
+            <h3>💸 批量退款</h3>
+            <p style="margin-bottom: 15px; color: #666;">一键退还所有可退款的红包</p>
+            <button class="btn" onclick="batchRefund()" id="batchRefundBtn" disabled>批量退款所有红包</button>
+            <div id="batchResult" class="result-area"></div>
+        </div>
+    </div>
+
+    <script>
+        let provider;
+        let signer;
+        let contract;
+        let userAddress;
+        let myPackets = [];
+        
+        const CONTRACT_ABI = [
+            "function createRedPacket(uint256 _count) external payable",
+            "function claimRedPacket(uint256 _packetId) external",
+            "function refundRedPacket(uint256 _packetId) external",
+            "function getPacketInfo(uint256 _packetId) external view returns (address, uint256, uint256, uint256, uint256, bool)",
+            "function hasClaimed(uint256 _packetId, address _user) external view returns (bool)",
+            "function getCurrentPacketId() external view returns (uint256)",
+            "event PacketCreated(uint256 indexed packetId, address indexed sender, uint256 totalAmount, uint256 totalCount)",
+            "event PacketClaimed(uint256 indexed packetId, address indexed claimer, uint256 amount)",
+            "event PacketRefunded(uint256 indexed packetId, address indexed sender, uint256 refundAmount)"
+        ];
+        
+        // 初始化
+        async function init() {
+            try {
+                if (typeof window.ethereum !== 'undefined') {
+                    provider = new ethers.providers.Web3Provider(window.ethereum);
+                    updateNetworkStatus('✅ MetaMask 已检测到');
+                } else {
+                    provider = new ethers.providers.JsonRpcProvider('https://sepolia.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161');
+                    updateNetworkStatus('⚠️ 使用公共 RPC (仅限只读操作)');
+                }
+                
+                const network = await provider.getNetwork();
+                if (network.chainId === 11155111) {
+                    updateNetworkStatus('✅ 已连接到 Sepolia 测试网');
+                } else {
+                    updateNetworkStatus('❌ 请切换到 Sepolia 测试网');
+                }
+            } catch (error) {
+                updateNetworkStatus('❌ 网络连接失败: ' + error.message);
+            }
+        }
+        
+        function updateNetworkStatus(message) {
+            document.getElementById('networkStatus').textContent = message;
+        }
+        
+        function log(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            const statusClass = type === 'error' ? 'error' : type === 'success' ? 'success' : 'warning';
+            const statusIcon = type === 'error' ? '❌' : type === 'success' ? '✅' : 'ℹ️';
+            
+            element.innerHTML += `<div class="status ${statusClass}">${statusIcon} ${timestamp}</div>\n${message}\n\n`;
+            element.scrollTop = element.scrollHeight;
+        }
+        
+        async function connectContract() {
+            const address = document.getElementById('contractAddress').value;
+            if (!address) {
+                alert('请输入合约地址');
+                return;
+            }
+            
+            log('contractResult', '连接合约...', 'info');
+            
+            try {
+                const code = await provider.getCode(address);
+                if (code === '0x') {
+                    log('contractResult', '合约不存在或未部署', 'error');
+                    return;
+                }
+                
+                contract = new ethers.Contract(address, CONTRACT_ABI, provider);
+                
+                // 测试合约功能
+                const currentId = await contract.getCurrentPacketId();
+                log('contractResult', `✅ 合约连接成功！\n当前红包数量: ${currentId}`, 'success');
+                
+                document.getElementById('loadBtn').disabled = false;
+                
+            } catch (error) {
+                log('contractResult', `连接失败: ${error.message}`, 'error');
+            }
+        }
+        
+        async function connectWallet() {
+            try {
+                if (typeof window.ethereum === 'undefined') {
+                    alert('请安装 MetaMask');
+                    return;
+                }
+                
+                await window.ethereum.request({ method: 'eth_requestAccounts' });
+                signer = provider.getSigner();
+                userAddress = await signer.getAddress();
+                
+                log('contractResult', `钱包连接成功: ${userAddress}`, 'success');
+                document.getElementById('batchRefundBtn').disabled = false;
+                
+            } catch (error) {
+                log('contractResult', `钱包连接失败: ${error.message}`, 'error');
+            }
+        }
+        
+        async function loadMyPackets() {
+            if (!contract || !userAddress) {
+                alert('请先连接合约和钱包');
+                return;
+            }
+            
+            try {
+                log('contractResult', '查找你创建的红包...', 'info');
+                
+                const currentId = await contract.getCurrentPacketId();
+                myPackets = [];
+                
+                // 查询 PacketCreated 事件找到用户的红包
+                const filter = contract.filters.PacketCreated(null, userAddress);
+                const events = await contract.queryFilter(filter, -10000); // 查询最近10000个区块
+                
+                log('contractResult', `找到 ${events.length} 个你创建的红包`, 'success');
+                
+                for (let event of events) {
+                    const packetId = event.args.packetId.toNumber();
+                    try {
+                        const packetInfo = await contract.getPacketInfo(packetId);
+                        myPackets.push({
+                            id: packetId,
+                            sender: packetInfo[0],
+                            totalAmount: packetInfo[1],
+                            remainingAmount: packetInfo[2],
+                            totalCount: packetInfo[3].toNumber(),
+                            remainingCount: packetInfo[4].toNumber(),
+                            isActive: packetInfo[5]
+                        });
+                    } catch (error) {
+                        console.error(`无法获取红包 ${packetId} 信息:`, error);
+                    }
+                }
+                
+                displayPackets();
+                
+            } catch (error) {
+                log('contractResult', `加载失败: ${error.message}`, 'error');
+            }
+        }
+        
+        function displayPackets() {
+            const packetsList = document.getElementById('packetsList');
+            
+            if (myPackets.length === 0) {
+                packetsList.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">没有找到你创建的红包</p>';
+                return;
+            }
+            
+            let html = '';
+            let refundableCount = 0;
+            let totalRefundable = ethers.BigNumber.from(0);
+            
+            myPackets.forEach(packet => {
+                const isRefundable = packet.isActive && packet.remainingAmount.gt(0);
+                if (isRefundable) {
+                    refundableCount++;
+                    totalRefundable = totalRefundable.add(packet.remainingAmount);
+                }
+                
+                html += `
+                    <div class="packet-card ${isRefundable ? 'refundable' : 'empty'}">
+                        <div class="packet-info">
+                            <div class="info-item">
+                                <div class="info-label">红包ID</div>
+                                <div class="info-value">${packet.id}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">总金额</div>
+                                <div class="info-value">${ethers.utils.formatEther(packet.totalAmount)} ETH</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">剩余金额</div>
+                                <div class="info-value" style="color: ${packet.remainingAmount.gt(0) ? '#28a745' : '#6c757d'}">${ethers.utils.formatEther(packet.remainingAmount)} ETH</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">剩余数量</div>
+                                <div class="info-value">${packet.remainingCount}/${packet.totalCount}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">状态</div>
+                                <div class="info-value" style="color: ${packet.isActive ? '#28a745' : '#6c757d'}">${packet.isActive ? '激活' : '已结束'}</div>
+                            </div>
+                        </div>
+                        <div style="text-align: center;">
+                            ${isRefundable ? 
+                                `<button class="btn" onclick="refundSinglePacket(${packet.id})">退款此红包</button>` : 
+                                `<span style="color: #6c757d;">无法退款</span>`
+                            }
+                        </div>
+                    </div>
+                `;
+            });
+            
+            // 添加汇总信息
+            if (refundableCount > 0) {
+                html = `
+                    <div style="background: #d4edda; border: 1px solid #c3e6cb; border-radius: 8px; padding: 15px; margin-bottom: 20px; text-align: center;">
+                        <h4 style="color: #155724; margin-bottom: 10px;">💰 可退款汇总</h4>
+                        <p style="color: #155724; margin: 0;">
+                            <strong>${refundableCount} 个红包</strong> 可退款，总计 <strong>${ethers.utils.formatEther(totalRefundable)} ETH</strong>
+                        </p>
+                    </div>
+                ` + html;
+            }
+            
+            packetsList.innerHTML = html;
+        }
+        
+        async function refundSinglePacket(packetId) {
+            if (!signer || !contract) {
+                alert('请先连接钱包');
+                return;
+            }
+            
+            try {
+                log('contractResult', `开始退款红包 ID: ${packetId}`, 'info');
+                
+                const contractWithSigner = contract.connect(signer);
+                const tx = await contractWithSigner.refundRedPacket(packetId, {
+                    gasLimit: 100000
+                });
+                
+                log('contractResult', `退款交易已发送: ${tx.hash}`, 'info');
+                
+                const receipt = await tx.wait();
+                
+                // 从事件中获取退款金额
+                const refundEvent = receipt.events.find(e => e.event === 'PacketRefunded');
+                if (refundEvent) {
+                    const amount = ethers.utils.formatEther(refundEvent.args.refundAmount);
+                    log('contractResult', `✅ 红包 ${packetId} 退款成功！\n退款金额: ${amount} ETH\nGas 使用: ${receipt.gasUsed}`, 'success');
+                }
+                
+                // 刷新数据
+                setTimeout(() => {
+                    refreshPackets();
+                }, 2000);
+                
+            } catch (error) {
+                let errorMsg = error.message;
+                if (errorMsg.includes('OnlySenderCanRefund')) {
+                    errorMsg = '只有红包创建者可以退款';
+                } else if (errorMsg.includes('PacketNotActive')) {
+                    errorMsg = '红包已结束或已被抢完';
+                }
+                log('contractResult', `红包 ${packetId} 退款失败: ${errorMsg}`, 'error');
+            }
+        }
+        
+        async function batchRefund() {
+            if (!signer || !contract || myPackets.length === 0) {
+                alert('请先连接钱包并加载红包列表');
+                return;
+            }
+            
+            const refundablePackets = myPackets.filter(packet => 
+                packet.isActive && packet.remainingAmount.gt(0)
+            );
+            
+            if (refundablePackets.length === 0) {
+                alert('没有可退款的红包');
+                return;
+            }
+            
+            if (!confirm(`确定要退款 ${refundablePackets.length} 个红包吗？\n注意：每个红包都需要单独的 Gas 费用`)) {
+                return;
+            }
+            
+            log('batchResult', `开始批量退款 ${refundablePackets.length} 个红包...`, 'info');
+            
+            let successCount = 0;
+            let totalRefunded = ethers.BigNumber.from(0);
+            const contractWithSigner = contract.connect(signer);
+            
+            for (let i = 0; i < refundablePackets.length; i++) {
+                const packet = refundablePackets[i];
+                
+                try {
+                    log('batchResult', `[${i+1}/${refundablePackets.length}] 退款红包 ${packet.id}...`, 'info');
+                    
+                    const tx = await contractWithSigner.refundRedPacket(packet.id, {
+                        gasLimit: 100000
+                    });
+                    
+                    const receipt = await tx.wait();
+                    const refundEvent = receipt.events.find(e => e.event === 'PacketRefunded');
+                    
+                    if (refundEvent) {
+                        const amount = refundEvent.args.refundAmount;
+                        totalRefunded = totalRefunded.add(amount);
+                        successCount++;
+                        
+                        log('batchResult', `✅ 红包 ${packet.id} 退款成功: ${ethers.utils.formatEther(amount)} ETH`, 'success');
+                    }
+                    
+                    // 每个交易间隔1秒，避免网络拥堵
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    
+                } catch (error) {
+                    log('batchResult', `❌ 红包 ${packet.id} 退款失败: ${error.message}`, 'error');
+                }
+            }
+            
+            log('batchResult', `\n🎉 批量退款完成！\n成功退款: ${successCount}/${refundablePackets.length} 个红包\n总退款金额: ${ethers.utils.formatEther(totalRefunded)} ETH`, 'success');
+            
+            // 刷新数据
+            setTimeout(() => {
+                refreshPackets();
+            }, 3000);
+        }
+        
+        async function refreshPackets() {
+            if (myPackets.length > 0) {
+                await loadMyPackets();
+            }
+        }
+        
+        // 页面加载时初始化
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>

@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧧 抢红包</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24, #feca57);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+        }
+        
+        .redpacket {
+            width: 200px;
+            height: 200px;
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            border-radius: 50%;
+            margin: 0 auto 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 4rem;
+            color: white;
+            box-shadow: 0 10px 30px rgba(255, 107, 107, 0.3);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .redpacket:hover {
+            transform: scale(1.05);
+            box-shadow: 0 15px 40px rgba(255, 107, 107, 0.4);
+        }
+        
+        .redpacket.opening {
+            animation: shake 0.5s ease-in-out;
+        }
+        
+        .redpacket::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(255,255,255,0.3), transparent);
+            transform: rotate(45deg);
+            transition: all 0.5s;
+        }
+        
+        .redpacket:hover::before {
+            animation: shine 1.5s infinite;
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        
+        @keyframes shine {
+            0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+            100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5rem;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1rem;
+        }
+        
+        .info-card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .info-row:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+        
+        .label {
+            font-weight: 600;
+            color: #555;
+        }
+        
+        .value {
+            color: #333;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: 600;
+            margin: 10px;
+            transition: all 0.3s ease;
+            min-width: 200px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(40, 167, 69, 0.3);
+        }
+        
+        .btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .status {
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            font-weight: 600;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status.warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #28a745;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .claimed-amount {
+            font-size: 2rem;
+            color: #28a745;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+        
+        .confetti {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            background: #feca57;
+            animation: confetti-fall 3s linear infinite;
+        }
+        
+        @keyframes confetti-fall {
+            0% {
+                transform: translateY(-100vh) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh) rotate(720deg);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧧 抢红包</h1>
+        <p class="subtitle">点击红包开始抢夺！</p>
+        
+        <div class="redpacket" id="redpacket" onclick="claimRedPacket()">
+            🧧
+        </div>
+        
+        <div class="info-card">
+            <div class="info-row">
+                <span class="label">红包ID:</span>
+                <span class="value" id="packetId">-</span>
+            </div>
+            <div class="info-row">
+                <span class="label">发送者:</span>
+                <span class="value" id="sender">-</span>
+            </div>
+            <div class="info-row">
+                <span class="label">剩余数量:</span>
+                <span class="value" id="remaining">-</span>
+            </div>
+            <div class="info-row">
+                <span class="label">剩余金额:</span>
+                <span class="value" id="remainingAmount">-</span>
+            </div>
+            <div class="info-row">
+                <span class="label">我的状态:</span>
+                <span class="value" id="myStatus">未连接钱包</span>
+            </div>
+        </div>
+        
+        <button class="btn" id="connectBtn" onclick="connectWallet()">连接钱包</button>
+        <button class="btn" id="claimBtn" onclick="claimRedPacket()" disabled>抢红包</button>
+        
+        <div id="statusMessage"></div>
+        
+        <div id="claimedAmount" class="claimed-amount" style="display: none;"></div>
+    </div>
+
+    <script>
+        // 通过 URL 参数获取合约信息
+        const urlParams = new URLSearchParams(window.location.search);
+        const CONTRACT_ADDRESS = urlParams.get('contract') || ''; // 从URL获取合约地址
+        const PACKET_ID = urlParams.get('id') || '0'; // 从URL获取红包ID
+        
+        // 如果没有URL参数，显示设置界面
+        if (!CONTRACT_ADDRESS) {
+            showSetup();
+        }
+        
+        let provider;
+        let signer;
+        let contract;
+        let userAddress;
+        
+        const CONTRACT_ABI = [
+            "function claimRedPacket(uint256 _packetId) external",
+            "function getPacketInfo(uint256 _packetId) external view returns (address, uint256, uint256, uint256, uint256, bool)",
+            "function hasClaimed(uint256 _packetId, address _user) external view returns (bool)",
+            "event PacketClaimed(uint256 indexed packetId, address indexed claimer, uint256 amount)"
+        ];
+        
+        async function init() {
+            document.getElementById('packetId').textContent = PACKET_ID;
+            
+            try {
+                if (typeof window.ethereum !== 'undefined') {
+                    provider = new ethers.providers.Web3Provider(window.ethereum);
+                } else {
+                    showStatus('请安装 MetaMask 钱包', 'error');
+                    return;
+                }
+                
+                const network = await provider.getNetwork();
+                if (network.chainId !== 11155111) {
+                    showStatus('请切换到 Sepolia 测试网', 'error');
+                    return;
+                }
+                
+                contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
+                await updatePacketInfo();
+                
+            } catch (error) {
+                showStatus('初始化失败: ' + error.message, 'error');
+            }
+        }
+        
+        async function connectWallet() {
+            try {
+                await window.ethereum.request({ method: 'eth_requestAccounts' });
+                signer = provider.getSigner();
+                userAddress = await signer.getAddress();
+                
+                document.getElementById('connectBtn').style.display = 'none';
+                document.getElementById('claimBtn').disabled = false;
+                
+                await updateMyStatus();
+                showStatus('钱包连接成功！', 'success');
+                
+            } catch (error) {
+                showStatus('钱包连接失败: ' + error.message, 'error');
+            }
+        }
+        
+        async function updatePacketInfo() {
+            try {
+                const packetInfo = await contract.getPacketInfo(PACKET_ID);
+                
+                document.getElementById('sender').textContent = packetInfo[0].substring(0, 10) + '...';
+                document.getElementById('remaining').textContent = packetInfo[4].toString();
+                document.getElementById('remainingAmount').textContent = ethers.utils.formatEther(packetInfo[2]) + ' ETH';
+                
+                if (packetInfo[4].eq(0)) {
+                    showStatus('红包已被抢完！', 'warning');
+                    document.getElementById('claimBtn').disabled = true;
+                    document.querySelector('.redpacket').style.filter = 'grayscale(100%)';
+                }
+                
+            } catch (error) {
+                showStatus('获取红包信息失败: ' + error.message, 'error');
+            }
+        }
+        
+        async function updateMyStatus() {
+            if (!userAddress) return;
+            
+            try {
+                const claimed = await contract.hasClaimed(PACKET_ID, userAddress);
+                document.getElementById('myStatus').textContent = claimed ? '已领取' : '未领取';
+                
+                if (claimed) {
+                    document.getElementById('claimBtn').disabled = true;
+                    document.getElementById('claimBtn').textContent = '已领取';
+                    document.querySelector('.redpacket').style.filter = 'grayscale(100%)';
+                }
+                
+            } catch (error) {
+                console.error('检查状态失败:', error);
+            }
+        }
+        
+        async function claimRedPacket() {
+            if (!signer) {
+                await connectWallet();
+                return;
+            }
+            
+            const redpacket = document.getElementById('redpacket');
+            const claimBtn = document.getElementById('claimBtn');
+            
+            try {
+                redpacket.classList.add('opening');
+                claimBtn.innerHTML = '<span class="loading"></span>抢夺中...';
+                claimBtn.disabled = true;
+                
+                showStatus('正在发送交易...', 'warning');
+                
+                const contractWithSigner = contract.connect(signer);
+                const tx = await contractWithSigner.claimRedPacket(PACKET_ID, {
+                    gasLimit: 150000
+                });
+                
+                showStatus('交易已发送，等待确认...', 'warning');
+                
+                const receipt = await tx.wait();
+                
+                // 从事件中获取领取金额
+                const claimEvent = receipt.events.find(e => e.event === 'PacketClaimed');
+                if (claimEvent) {
+                    const amount = ethers.utils.formatEther(claimEvent.args.amount);
+                    showClaimedAmount(amount);
+                    createConfetti();
+                }
+                
+                showStatus('🎉 恭喜！红包抢夺成功！', 'success');
+                
+                await updatePacketInfo();
+                await updateMyStatus();
+                
+            } catch (error) {
+                let errorMsg = error.message;
+                
+                if (errorMsg.includes('AlreadyClaimed')) {
+                    errorMsg = '你已经领取过这个红包了';
+                } else if (errorMsg.includes('NoRemainingPackets')) {
+                    errorMsg = '红包已被抢完';
+                } else if (errorMsg.includes('PacketNotActive')) {
+                    errorMsg = '红包已结束';
+                }
+                
+                showStatus('抢夺失败: ' + errorMsg, 'error');
+                
+            } finally {
+                redpacket.classList.remove('opening');
+                claimBtn.innerHTML = '抢红包';
+                claimBtn.disabled = false;
+            }
+        }
+        
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('statusMessage');
+            statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+        
+        function showClaimedAmount(amount) {
+            const amountDiv = document.getElementById('claimedAmount');
+            amountDiv.textContent = `获得 ${amount} ETH`;
+            amountDiv.style.display = 'block';
+        }
+        
+        function createConfetti() {
+            for (let i = 0; i < 50; i++) {
+                setTimeout(() => {
+                    const confetti = document.createElement('div');
+                    confetti.classList.add('confetti');
+                    confetti.style.left = Math.random() * 100 + 'vw';
+                    confetti.style.backgroundColor = ['#ff6b6b', '#feca57', '#48dbfb', '#ff9ff3', '#54a0ff'][Math.floor(Math.random() * 5)];
+                    confetti.style.animationDelay = Math.random() * 3 + 's';
+                    document.body.appendChild(confetti);
+                    
+                    setTimeout(() => {
+                        confetti.remove();
+                    }, 3000);
+                }, i * 50);
+            }
+        }
+        
+        function showSetup() {
+            document.body.innerHTML = `
+                <div class="container">
+                    <h1>🧧 红包设置</h1>
+                    <p class="subtitle">请提供红包信息</p>
+                    <div style="margin: 30px 0;">
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">合约地址:</label>
+                            <input type="text" id="contractAddr" placeholder="0x..." style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px;">
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">红包ID:</label>
+                            <input type="number" id="packetIdInput" value="0" min="0" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px;">
+                        </div>
+                        <button class="btn" onclick="generateLink()">生成抢红包链接</button>
+                    </div>
+                    <div id="generatedLink" style="display: none; margin-top: 20px;">
+                        <h3>分享这个链接给朋友:</h3>
+                        <input type="text" id="linkInput" readonly style="width: 100%; padding: 10px; border: 2px solid #28a745; border-radius: 8px; font-size: 14px; margin-top: 10px;">
+                        <button class="btn" onclick="copyLink()">复制链接</button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function generateLink() {
+            const contractAddr = document.getElementById('contractAddr').value;
+            const packetId = document.getElementById('packetIdInput').value;
+            
+            if (!contractAddr) {
+                alert('请输入合约地址');
+                return;
+            }
+            
+            const link = `${window.location.origin}${window.location.pathname}?contract=${contractAddr}&id=${packetId}`;
+            
+            document.getElementById('linkInput').value = link;
+            document.getElementById('generatedLink').style.display = 'block';
+        }
+        
+        function copyLink() {
+            const linkInput = document.getElementById('linkInput');
+            linkInput.select();
+            document.execCommand('copy');
+            alert('链接已复制！');
+        }
+        
+        // 初始化
+        if (CONTRACT_ADDRESS) {
+            window.addEventListener('load', init);
+        }
+    </script>
+</body>
+</html>

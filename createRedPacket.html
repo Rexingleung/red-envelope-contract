@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>红包合约验证工具</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5rem;
+        }
+        
+        .header p {
+            color: #666;
+            font-size: 1.1rem;
+        }
+        
+        .verification-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 4px solid #007bff;
+        }
+        
+        .verification-section h3 {
+            color: #333;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .input-group {
+            margin-bottom: 15px;
+        }
+        
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .input-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        .input-group input:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,123,255,0.4);
+        }
+        
+        .btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #28a745, #1e7e34);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #dc3545, #a71e2a);
+        }
+        
+        .result-area {
+            margin-top: 20px;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+            min-height: 150px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            font-size: 14px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .status {
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            display: inline-block;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status.warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .network-status {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 10px;
+            background: #e3f2fd;
+            border-radius: 8px;
+        }
+        
+        .function-test {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧧 红包合约验证工具</h1>
+            <p>Sepolia 测试网智能合约验证与测试</p>
+        </div>
+        
+        <div class="network-status">
+            <div id="networkStatus">🔗 检查网络连接中...</div>
+        </div>
+        
+        <div class="verification-section">
+            <h3>📋 合约基本信息</h3>
+            <div class="input-group">
+                <label for="contractAddress">合约地址:</label>
+                <input type="text" id="contractAddress" placeholder="0x..." />
+            </div>
+            <button class="btn" onclick="verifyContract()">验证合约</button>
+            <div id="contractResult" class="result-area"></div>
+        </div>
+        
+        <div class="verification-section">
+            <h3>🔍 合约功能测试</h3>
+            <div class="function-test">
+                <button class="btn btn-success" onclick="testReadFunctions()">测试读取功能</button>
+                <button class="btn" onclick="connectWallet()">连接钱包</button>
+                <button class="btn" onclick="testCreatePacket()" id="createBtn" disabled>创建红包</button>
+                <button class="btn" onclick="testClaimPacket()" id="claimBtn" disabled>抢红包</button>
+            </div>
+            <div class="input-group">
+                <label for="packetCount">红包数量:</label>
+                <input type="number" id="packetCount" value="3" min="1" max="10" />
+            </div>
+            <div class="input-group">
+                <label for="packetAmount">红包总金额 (ETH):</label>
+                <input type="number" id="packetAmount" value="0.003" step="0.001" min="0.001" />
+            </div>
+            <div class="input-group">
+                <label for="packetId">红包ID (用于抢红包):</label>
+                <input type="number" id="packetId" value="0" min="0" />
+            </div>
+            <div id="functionResult" class="result-area"></div>
+        </div>
+        
+        <div class="verification-section">
+            <h3>📊 事件日志查询</h3>
+            <button class="btn" onclick="queryEvents()">查询事件</button>
+            <div id="eventResult" class="result-area"></div>
+        </div>
+    </div>
+
+    <script>
+        let provider;
+        let signer;
+        let contract;
+        let userAddress;
+        
+        const CONTRACT_ABI = [
+            "function createRedPacket(uint256 _count) external payable",
+            "function claimRedPacket(uint256 _packetId) external",
+            "function refundRedPacket(uint256 _packetId) external",
+            "function getPacketInfo(uint256 _packetId) external view returns (address, uint256, uint256, uint256, uint256, bool)",
+            "function hasClaimed(uint256 _packetId, address _user) external view returns (bool)",
+            "function getCurrentPacketId() external view returns (uint256)",
+            "event PacketCreated(uint256 indexed packetId, address indexed sender, uint256 totalAmount, uint256 totalCount)",
+            "event PacketClaimed(uint256 indexed packetId, address indexed claimer, uint256 amount)",
+            "event PacketRefunded(uint256 indexed packetId, address indexed sender, uint256 refundAmount)"
+        ];
+        
+        // 初始化
+        async function init() {
+            try {
+                if (typeof window.ethereum !== 'undefined') {
+                    provider = new ethers.providers.Web3Provider(window.ethereum);
+                    updateNetworkStatus('✅ MetaMask 已连接');
+                } else {
+                    provider = new ethers.providers.JsonRpcProvider('https://sepolia.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161');
+                    updateNetworkStatus('⚠️ 使用公共 RPC (仅限只读操作)');
+                }
+                
+                const network = await provider.getNetwork();
+                if (network.chainId === 11155111) {
+                    updateNetworkStatus('✅ 已连接到 Sepolia 测试网');
+                } else {
+                    updateNetworkStatus('❌ 请切换到 Sepolia 测试网');
+                }
+            } catch (error) {
+                updateNetworkStatus('❌ 网络连接失败: ' + error.message);
+            }
+        }
+        
+        function updateNetworkStatus(message) {
+            document.getElementById('networkStatus').textContent = message;
+        }
+        
+        function log(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            const statusClass = type === 'error' ? 'error' : type === 'success' ? 'success' : 'warning';
+            const statusIcon = type === 'error' ? '❌' : type === 'success' ? '✅' : 'ℹ️';
+            
+            element.innerHTML += `<div class="status ${statusClass}">${statusIcon} ${timestamp}</div>\n${message}\n\n`;
+            element.scrollTop = element.scrollHeight;
+        }
+        
+        async function verifyContract() {
+            const address = document.getElementById('contractAddress').value;
+            if (!address) {
+                alert('请输入合约地址');
+                return;
+            }
+            
+            log('contractResult', '开始验证合约...', 'info');
+            
+            try {
+                // 检查合约代码
+                const code = await provider.getCode(address);
+                if (code === '0x') {
+                    log('contractResult', '合约不存在或未部署', 'error');
+                    return;
+                }
+                
+                log('contractResult', '✅ 合约代码验证通过', 'success');
+                
+                // 创建合约实例
+                contract = new ethers.Contract(address, CONTRACT_ABI, provider);
+                
+                // 测试基本功能
+                const currentId = await contract.getCurrentPacketId();
+                log('contractResult', `当前红包ID: ${currentId}`, 'success');
+                
+                if (currentId.gt(0)) {
+                    try {
+                        const packetInfo = await contract.getPacketInfo(0);
+                        log('contractResult', `红包信息读取成功:\n发送者: ${packetInfo[0]}\n总金额: ${ethers.utils.formatEther(packetInfo[1])} ETH\n剩余金额: ${ethers.utils.formatEther(packetInfo[2])} ETH\n总数量: ${packetInfo[3]}\n剩余数量: ${packetInfo[4]}\n是否激活: ${packetInfo[5]}`, 'success');
+                    } catch (error) {
+                        log('contractResult', `无法读取红包 0 的信息: ${error.message}`, 'warning');
+                    }
+                }
+                
+                log('contractResult', '🎉 合约验证完成！', 'success');
+                
+            } catch (error) {
+                log('contractResult', `验证失败: ${error.message}`, 'error');
+            }
+        }
+        
+        async function connectWallet() {
+            try {
+                if (typeof window.ethereum === 'undefined') {
+                    alert('请安装 MetaMask');
+                    return;
+                }
+                
+                await window.ethereum.request({ method: 'eth_requestAccounts' });
+                signer = provider.getSigner();
+                userAddress = await signer.getAddress();
+                
+                log('functionResult', `钱包连接成功: ${userAddress}`, 'success');
+                
+                document.getElementById('createBtn').disabled = false;
+                document.getElementById('claimBtn').disabled = false;
+                
+            } catch (error) {
+                log('functionResult', `钱包连接失败: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testReadFunctions() {
+            const address = document.getElementById('contractAddress').value;
+            if (!address) {
+                alert('请先输入合约地址');
+                return;
+            }
+            
+            try {
+                const testContract = new ethers.Contract(address, CONTRACT_ABI, provider);
+                
+                log('functionResult', '测试只读功能...', 'info');
+                
+                const currentId = await testContract.getCurrentPacketId();
+                log('functionResult', `✅ getCurrentPacketId(): ${currentId}`, 'success');
+                
+                if (currentId.gt(0)) {
+                    const packetInfo = await testContract.getPacketInfo(0);
+                    log('functionResult', `✅ getPacketInfo(0): 成功读取`, 'success');
+                    
+                    if (userAddress) {
+                        const claimed = await testContract.hasClaimed(0, userAddress);
+                        log('functionResult', `✅ hasClaimed(0, ${userAddress}): ${claimed}`, 'success');
+                    }
+                }
+                
+            } catch (error) {
+                log('functionResult', `读取功能测试失败: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testCreatePacket() {
+            if (!signer || !contract) {
+                alert('请先连接钱包并验证合约');
+                return;
+            }
+            
+            const count = document.getElementById('packetCount').value;
+            const amount = document.getElementById('packetAmount').value;
+            
+            try {
+                log('functionResult', `创建红包: ${count}个, 总额${amount}ETH`, 'info');
+                
+                const contractWithSigner = contract.connect(signer);
+                const tx = await contractWithSigner.createRedPacket(count, {
+                    value: ethers.utils.parseEther(amount),
+                    gasLimit: 200000
+                });
+                
+                log('functionResult', `交易已发送: ${tx.hash}`, 'info');
+                
+                const receipt = await tx.wait();
+                log('functionResult', `✅ 红包创建成功! Gas使用: ${receipt.gasUsed}`, 'success');
+                
+                // 更新当前红包ID
+                const currentId = await contract.getCurrentPacketId();
+                document.getElementById('packetId').value = currentId - 1;
+                
+            } catch (error) {
+                log('functionResult', `创建红包失败: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testClaimPacket() {
+            if (!signer || !contract) {
+                alert('请先连接钱包并验证合约');
+                return;
+            }
+            
+            const packetId = document.getElementById('packetId').value;
+            
+            try {
+                log('functionResult', `尝试抢红包 ID: ${packetId}`, 'info');
+                
+                const contractWithSigner = contract.connect(signer);
+                const tx = await contractWithSigner.claimRedPacket(packetId, {
+                    gasLimit: 150000
+                });
+                
+                log('functionResult', `交易已发送: ${tx.hash}`, 'info');
+                
+                const receipt = await tx.wait();
+                log('functionResult', `✅ 红包领取成功! Gas使用: ${receipt.gasUsed}`, 'success');
+                
+            } catch (error) {
+                log('functionResult', `领取红包失败: ${error.message}`, 'error');
+            }
+        }
+        
+        async function queryEvents() {
+            const address = document.getElementById('contractAddress').value;
+            if (!address) {
+                alert('请先输入合约地址');
+                return;
+            }
+            
+            try {
+                const testContract = new ethers.Contract(address, CONTRACT_ABI, provider);
+                
+                log('eventResult', '查询事件日志...', 'info');
+                
+                // 查询 PacketCreated 事件
+                const createdFilter = testContract.filters.PacketCreated();
+                const createdEvents = await testContract.queryFilter(createdFilter, -1000);
+                log('eventResult', `PacketCreated 事件: ${createdEvents.length} 个`, 'success');
+                
+                createdEvents.forEach((event, index) => {
+                    const { packetId, sender, totalAmount, totalCount } = event.args;
+                    log('eventResult', `  ${index + 1}. 红包ID:${packetId}, 发送者:${sender}, 金额:${ethers.utils.formatEther(totalAmount)}ETH, 数量:${totalCount}`, 'info');
+                });
+                
+                // 查询 PacketClaimed 事件
+                const claimedFilter = testContract.filters.PacketClaimed();
+                const claimedEvents = await testContract.queryFilter(claimedFilter, -1000);
+                log('eventResult', `PacketClaimed 事件: ${claimedEvents.length} 个`, 'success');
+                
+                claimedEvents.forEach((event, index) => {
+                    const { packetId, claimer, amount } = event.args;
+                    log('eventResult', `  ${index + 1}. 红包ID:${packetId}, 领取者:${claimer}, 金额:${ethers.utils.formatEther(amount)}ETH`, 'info');
+                });
+                
+            } catch (error) {
+                log('eventResult', `查询事件失败: ${error.message}`, 'error');
+            }
+        }
+        
+        // 页面加载时初始化
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
