@@ -1,0 +1,19 @@
+{
+  "name": "red-envelope-contract",
+  "version": "1.0.0",
+  "description": "我来为你创建一个简单的发红包智能合约，适用于 Sepolia 测试网。这是一个完整的红包智能合约，适用于 Sepolia 测试网。主要功能包括：",
+  "main": "truffle-config.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@truffle/hdwallet-provider": "^2.1.15",
+    "dotenv": "^17.2.1",
+    "truffle-plugin-verify": "^0.6.7"
+  }
+}
